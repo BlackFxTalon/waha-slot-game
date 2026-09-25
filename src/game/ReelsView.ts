@@ -296,6 +296,8 @@ export class ReelsView extends Container {
         sp.visible = true;
         const sym = VISUAL_STRIPS[i][((j % L) + L) % L];
         sp.texture = this.symbols[sym];
+        // Масштаб — от фактической ширины текстуры (wild 1254px ≠ атлас 418px)
+        sp.scale.set(CELL / Math.max(1, sp.texture.width));
         sp.y = y;
       }
     });

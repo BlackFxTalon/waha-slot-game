@@ -37,7 +37,7 @@ export class PaytableView extends Container {
     const wildY = 100;
     const wildIcon = new Sprite(symbols.wild);
     wildIcon.anchor.set(0.5);
-    wildIcon.scale.set((72 / ATLAS.cell) * 1.05);
+    wildIcon.scale.set((72 / symbols.wild.width) * 1.05);
     wildIcon.position.set(tableX + 36 + 0, wildY + 36);
     this.panel.addChild(wildIcon);
     const wildName = makeText('ЧЕРЕП-РЕЛИКВИЯ — WILD', 22, COLORS.goldBright, 'bold', 2);

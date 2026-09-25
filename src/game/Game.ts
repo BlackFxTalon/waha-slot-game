@@ -3,7 +3,7 @@
  * idle → spinning → presenting/bigwin → idle (→ autoplay → spinning…),
  * ввод (мышь + клавиатура), баланс/ставки, сохранение в localStorage.
  */
-import { Application, Container, Renderer, Sprite } from 'pixi.js';
+import { Application, Container, Sprite } from 'pixi.js';
 import {
   AUTOPLAY_PRESETS,
   BIG_WIN_TIERS,
@@ -25,7 +25,6 @@ import { BigWinOverlay } from './BigWinOverlay';
 import { PaytableView } from './PaytableView';
 import { Ui } from './Ui';
 import { audio } from '../audio';
-import { makeWildTexture } from './wildTexture';
 import { Embers } from './Embers';
 import type { GameAssets } from '../assets';
 
@@ -123,9 +122,6 @@ export class Game extends Container {
     bgSprite.width = DESIGN_W;
     bgSprite.height = DESIGN_H;
     this.addChild(bgSprite);
-
-    // Wild: текстура генерируется вектором и кладётся в общий реестр
-    assets.symbols.wild = this.makeWildTexture(app.renderer as Renderer);
 
     // ── Эмберы ─────────────────────────────────────────────────────
     this.embers = new Embers();
@@ -447,11 +443,6 @@ export class Game extends Container {
     this.lossLimitMult = LOSS_LIMIT_MULTS[idx];
     this.ui.setAutoplayLimits(this.winLimitMult, this.lossLimitMult);
     this.persist();
-  }
-
-  /** Векторный wild: золотая рамка + череп + плашка WILD. */
-  private makeWildTexture(renderer: Renderer): import('pixi.js').Texture {
-    return makeWildTexture(renderer);
   }
 
   private persist(): void {

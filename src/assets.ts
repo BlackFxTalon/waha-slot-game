@@ -7,6 +7,7 @@ import { Assets, Rectangle, Texture } from 'pixi.js';
 import { ATLAS, type SymbolId, SYMBOLS } from './game/config';
 import symbolsUrl from '../assets/symbols.png';
 import backgroundUrl from '../assets/background.png';
+import wildUrl from '../assets/wild.png';
 
 export interface GameAssets {
   bg: Texture;
@@ -17,9 +18,10 @@ export async function loadAssets(onProgress: (p: number) => void): Promise<GameA
   onProgress(0.05);
 
   // Параллельная загрузка двух изображений
-  const [bg, atlas] = await Promise.all([
+  const [bg, atlas, wild] = await Promise.all([
     Assets.load<Texture>(backgroundUrl),
     Assets.load<Texture>(symbolsUrl),
+    Assets.load<Texture>(wildUrl),
   ]);
   onProgress(0.7);
 
@@ -35,6 +37,9 @@ export async function loadAssets(onProgress: (p: number) => void): Promise<GameA
     done++;
     onProgress(0.7 + 0.3 * (done / SYMBOLS.length));
   }
+  // Wild — отдельный арт, не из атласа
+  symbols.wild = wild;
+
   onProgress(1);
   return { bg, symbols };
 }

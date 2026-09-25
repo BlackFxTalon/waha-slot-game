@@ -6,10 +6,10 @@
 import { Container, Graphics, Sprite } from 'pixi.js';
 import { CELL, REELS_AREA, cellCenter } from '../layout';
 import { COLORS } from './ui/widgets';
-import { ATLAS, TIMING } from './config';
+import { TIMING } from './config';
 
 /** Базовый масштаб спрайта символа: текстура 418px → ячейка. */
-const SYM_SCALE = CELL / ATLAS.cell;
+
 import type { LineWin, SpinResult } from './math';
 import { audio } from '../audio';
 
@@ -20,6 +20,7 @@ interface WinCellRef {
   baseY: number;
   reel: number;
   row: number;
+  baseScale: number;
 }
 
 export interface PresentOptions {
@@ -80,7 +81,7 @@ export class WinPresenter extends Container {
           sp.anchor.set(0.5);
           sp.x = CELL / 2;
           sp.y = row * CELL + CELL / 2;
-          this.winCells.push({ sprite: sp, baseY: sp.y, reel: r, row });
+          this.winCells.push({ sprite: sp, baseY: sp.y, reel: r, row, baseScale: sp.scale.x });
         } else {
           sp.tint = 0x555555;
           sp.alpha = 0.55;
@@ -139,7 +140,7 @@ export class WinPresenter extends Container {
     // Пульс выигрышных символов
     const t = this.clock / 1000;
     for (const wc of this.winCells) {
-      const s = SYM_SCALE * (1 + 0.05 * Math.max(0, Math.sin(t * 6)));
+      const s = wc.baseScale * (1 + 0.05 * Math.max(0, Math.sin(t * 6)));
       wc.sprite.scale.set(s);
     }
 
@@ -204,7 +205,7 @@ export class WinPresenter extends Container {
       wc.sprite.anchor.set(0, 0);
       wc.sprite.x = 0;
       wc.sprite.y = wc.row * CELL;
-      wc.sprite.scale.set(SYM_SCALE);
+      wc.sprite.scale.set(wc.baseScale);
       wc.sprite.tint = 0xffffff;
       wc.sprite.alpha = 1;
     }
