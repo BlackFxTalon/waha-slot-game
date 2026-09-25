@@ -77,7 +77,8 @@ export class BigWinOverlay extends Container {
     this.amount.text = '0';
     this.shown = 0;
     this.amountVal = winAmount;
-    this.countDur = Math.max(1400, tier.mult * 60);
+    // Набегание счёта: 1.6–8 с независимо от размера выигрыша
+    this.countDur = Math.min(8000, Math.max(1600, tier.mult * 60));
     this.sub.text = `${Math.round(mult)}× ОБЩЕЙ СТАВКИ`;
     this.onDone = onDone;
     this.active = true;
