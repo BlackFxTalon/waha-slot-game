@@ -34,6 +34,8 @@ export interface PresentOptions {
 export class WinPresenter extends Container {
   private traces: Graphics;
   private winCells: WinCellRef[] = [];
+  /** Все спрайты, чьи tint/alpha менялись — сбрасываются в clear(). */
+  private touchedSprites: Sprite[] = [];
   private clock = 0;
   private active = false;
   private opts: PresentOptions | null = null;
@@ -81,6 +83,7 @@ export class WinPresenter extends Container {
           sp.tint = 0x555555;
           sp.alpha = 0.55;
         }
+        this.touchedSprites.push(sp);
       }
     }
 
@@ -188,6 +191,13 @@ export class WinPresenter extends Container {
     this.opts = null;
     this.wins = [];
     this.traces.clear();
+    // Сброс затемнения/прозрачности ВСЕХ тронутых спрайтов
+    // (иначе невыигравшие остаются тёмными навсегда)
+    for (const sp of this.touchedSprites) {
+      sp.tint = 0xffffff;
+      sp.alpha = 1;
+    }
+    this.touchedSprites = [];
     for (const wc of this.winCells) {
       wc.sprite.anchor.set(0, 0);
       wc.sprite.x = 0;
