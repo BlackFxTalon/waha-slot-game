@@ -304,6 +304,7 @@ export class Ui extends Container {
     const x = Math.min(Math.max(cx - w / 2, 16), DESIGN_W - w - 16);
     const y = below ? target.y + target.height + 10 : target.y - h - 10;
     this.tooltipBg
+      .clear() // сброс прежних панелей — иначе геометрия накапливается
       .roundRect(0, 0, w, h, 8)
       .fill({ color: 0x0d0a08, alpha: 0.96 })
       .roundRect(0, 0, w, h, 8)
