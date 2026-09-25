@@ -111,23 +111,23 @@ try {
   const saveOk = saved !== null && JSON.parse(saved).balance === expectedBalance;
   if (!saveOk) errors.push(`Баланс после спина не сохранился: ${saved}, ожидалось ${expectedBalance}`);
 
-  // Ещё два спина клавишей Space (второй — fast stop)
-  await page.keyboard.press('Space'); // если был показ выигрыша — пропустить его
-  await page.waitForFunction(() => {
+  // Ещё спины клавишей Space; Space в презентации = skip, в покое = новый спин
+  const waitIdle = (timeout) => page.waitForFunction(() => {
     const d = window.__grim;
     return d && !d.spinning() && d.state() === 'idle';
-  }, { timeout: 25000 });
-  await page.keyboard.press('Space'); // старт спина #2
-  await page.waitForFunction(() => {
+  }, { timeout });
+  const waitSpinning = (timeout) => page.waitForFunction(() => {
     const d = window.__grim;
     return d && d.spinning();
-  }, { timeout: 10000 });
+  }, { timeout });
+
+  await page.keyboard.press('Space'); // skip презентации (если шла) или старт спина
+  await waitIdle(60000);               // idle — гарантированно (даём презентации доиграть)
+  await page.keyboard.press('Space'); // старт спина #2
+  await waitSpinning(15000);
   await page.waitForTimeout(600);
   await page.keyboard.press('Space'); // skip
-  await page.waitForFunction(() => {
-    const d = window.__grim;
-    return d && !d.spinning() && d.state() === 'idle';
-  }, { timeout: 25000 });
+  await waitIdle(60000);
   const r2 = await page.evaluate(() => {
     const d = window.__grim;
     return { pay: d.result().totalPay, grid: d.grid() };
@@ -151,6 +151,29 @@ try {
   const hist = await page.evaluate(() => window.__grim.history());
   console.log('  история:', JSON.stringify(hist));
   await page.screenshot({ path: shotsDir + '04-after-3-spins.png' });
+
+  // Портрет (мобильный): спин кнопкой, проверка баланса
+  const m = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await m.goto(GAME_URL + '?debug=1', { waitUntil: 'networkidle' });
+  await m.waitForSelector('canvas');
+  await m.waitForTimeout(2200);
+  await m.mouse.click(195, 706); // кнопка спина в портретной раскладке
+  await m.waitForFunction(() => {
+    const d = window.__grim;
+    return d && d.spinning();
+  }, { timeout: 15000 });
+  await m.waitForFunction(() => {
+    const d = window.__grim;
+    return d && !d.spinning() && d.state() === 'idle';
+  }, { timeout: 45000 });
+  const mBal = await m.evaluate(() => {
+    const d = window.__grim;
+    return { balance: d.balance(), hist: d.history().length };
+  });
+  await m.screenshot({ path: shotsDir + '11-portrait.png' });
+  if (mBal.hist < 1) errors.push('Портрет: спин не выполнен');
+  if (mBal.balance >= 10000) errors.push('Портрет: ставка не списалась');
+  await m.close();
 
   // Таблица выплат
   await page.keyboard.press('KeyI');

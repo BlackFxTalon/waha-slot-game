@@ -4,7 +4,7 @@
  */
 import { Container, Graphics, Text } from 'pixi.js';
 import { LINE_BETS, LINES } from './config';
-import { BOTTOM_BAR, DESIGN_H, DESIGN_W, TOP_BAR } from '../layout';
+import { BOTTOM_BAR, DESIGN_H, DESIGN_W, MODE, TOP_BAR } from '../layout';
 import { Button, COLORS, makePanel, makeText } from './ui/widgets';
 import { audio } from '../audio';
 
@@ -34,11 +34,15 @@ export class Ui extends Container {
   private betDownBtn: Button;
   private infoBtn: Button;
   private muteBtn: Button;
+  private title: Text;
+  private subtitle: Text;
   private betUpBtn: Button;
   private muteIcon: Container;
   private muteIconParts: Graphics;
   private turboBtn: Button;
-  private turboBolt: Graphics;
+  private turboLabel: Text;
+  private turboState: Text;
+  private turboRing: Graphics;
   private winLimitBtn: Button;
   private lossLimitBtn: Button;
   private winLimitLabel: Text;
@@ -52,12 +56,12 @@ export class Ui extends Container {
     super();
 
     // ── Верхняя панель ──────────────────────────────────────────────
-    const title = makeText('GRIM FORTUNE', 34, COLORS.goldBright, 'bold', 10);
-    title.position.set(46, TOP_BAR.h / 2 - 34);
-    this.addChild(title);
-    const subtitle = makeText('тёмные барабаны императора', 16, '#7a6a45', 'normal', 3);
-    subtitle.position.set(48, TOP_BAR.h / 2 + 8);
-    this.addChild(subtitle);
+    this.title = makeText('GRIM FORTUNE', 34, COLORS.goldBright, 'bold', 10);
+    this.title.position.set(46, TOP_BAR.h / 2 - 34);
+    this.addChild(this.title);
+    this.subtitle = makeText('тёмные барабаны императора', 16, '#7a6a45', 'normal', 3);
+    this.subtitle.position.set(48, TOP_BAR.h / 2 + 8);
+    this.addChild(this.subtitle);
 
     // Таблица выплат
     const infoBtn = this.infoBtn = new Button(56, 56, 'rect', () => {
@@ -172,16 +176,24 @@ export class Ui extends Container {
     spinIcon.fill({ color: COLORS.parchment });
     this.spinBtn.content.addChild(spinIcon);
 
-    // Турбо (слева от АВТО)
-    this.turboBtn = new Button(64, 64, 'rect', () => {
+    // Турбо (слева от АВТО) — текстовая кнопка, как АВТО
+    this.turboBtn = new Button(96, 64, 'rect', () => {
       audio.uiClick();
       cb.onTurbo();
     }, { base: 0x241a06 });
-    this.turboBtn.position.set(DESIGN_W / 2 - 58 - 96 - 36 - 20 - 64, DESIGN_H - 74 - 32);
-    this.turboBolt = new Graphics();
-    this.turboBolt.position.set(32, 32);
-    this.turboBtn.content.addChild(this.turboBolt);
-    this.addChild(this.turboBtn);
+    this.turboBtn.position.set(DESIGN_W / 2 - 58 - 96 - 36 - 20 - 96, DESIGN_H - 74 - 32);
+    this.turboLabel = makeText('ТУРБО', 22, COLORS.parchment, 'bold', 2);
+    this.turboLabel.anchor.set(0.5);
+    this.turboLabel.position.set(48, 24);
+    this.turboBtn.content.addChild(this.turboLabel);
+    this.turboState = makeText('ВЫКЛ', 16, '#8a7a52', 'bold', 1);
+    this.turboState.anchor.set(0.5);
+    this.turboState.position.set(48, 46);
+    this.turboState.name = 'turboState';
+    this.turboBtn.content.addChild(this.turboState);
+    this.turboRing = new Graphics();
+    this.turboRing.visible = false;
+    this.turboBtn.addChild(this.turboRing);
 
     // Автоигра (слева от спина)
     this.autoBtn = new Button(96, 64, 'rect', () => {
@@ -251,6 +263,30 @@ export class Ui extends Container {
     this.attachTip(this.betUpBtn, 'СТАВКА БОЛЬШЕ (↑)');
     this.attachTip(this.spinBtn, 'КРУТИТЬ БАРАБАНЫ (SPACE) — ПОВТОРНО: БЫСТРЫЙ СТОП');
 
+    // ── Портретная раскладка (мобильные) ────────────────────────────
+    if (MODE === 'portrait') {
+      this.title.position.set(28, 40);
+      this.subtitle.position.set(30, 88);
+      this.infoBtn.position.set(DESIGN_W - 24 - 56, 70);
+      this.muteBtn.position.set(DESIGN_W - 24 - 56 - 56 - 10, 70);
+      // лимиты — под шапкой слева
+      this.winLimitBtn.position.set(30, 170);
+      this.lossLimitBtn.position.set(30, 222);
+      // панели — в одну строку
+      balancePanel.position.set(40, BOTTOM_BAR.y + 20);
+      betPanel.position.set(560, BOTTOM_BAR.y + 20);
+      this.betDownBtn.position.set(560 + 275, BOTTOM_BAR.y + 30);
+      this.betUpBtn.position.set(560 + 345, BOTTOM_BAR.y + 30);
+      // выигрыш — над панелями
+      this.winLabel.position.set(DESIGN_W / 2, 1160);
+      this.winText.position.set(DESIGN_W / 2, 1210);
+      this.toastText.position.set(DESIGN_W / 2, 1100);
+      // управление: турбо, авто, спин
+      this.turboBtn.position.set(120, 1690);
+      this.autoBtn.position.set(236, 1690);
+      this.spinBtn.position.set(482, 1690);
+    }
+
     this.addChild(this.makeLinesHint());
   }
 
@@ -263,23 +299,22 @@ export class Ui extends Container {
     return c;
   }
 
-  private drawTurboBolt(on: boolean): void {
-    const g = this.turboBolt.clear();
-    const color = on ? 0x1a1208 : COLORS.parchment;
-    if (on) {
-      // Золотая подложка-заряд
-      g.poly([0, -17, 9, -4, 4, -4, 10, 17, -8, 1, -2, 1, -9, 12])
-        .fill({ color: 0xf1d97a, alpha: 0.25 });
-    }
-    g.poly([1, -16, 8, -4, 3, -4, 9, 15, -9, 0, -3, 0, -8, 14])
-      .fill({ color })
-      .stroke({ color: on ? COLORS.goldBright : 0x5a4a30, width: 1.5 });
-  }
-
   setTurbo(on: boolean): void {
-    this.drawTurboBolt(on);
-    this.turboBtn.setEnabled(true);
-    this.turboBtn.alpha = on ? 1 : 0.75;
+    this.turboRing.visible = on;
+    if (on) {
+      this.turboRing
+        .roundRect(2, 2, 92, 60, 8)
+        .stroke({ color: COLORS.goldBright, width: 3 })
+        .roundRect(2, 2, 92, 60, 8)
+        .fill({ color: 0xf1d97a, alpha: 0.12 });
+      this.turboLabel.style.fill = COLORS.goldBright;
+      this.turboState.text = 'ВКЛ';
+      this.turboState.style.fill = COLORS.goldBright;
+    } else {
+      this.turboLabel.style.fill = COLORS.parchment;
+      this.turboState.text = 'ВЫКЛ';
+      this.turboState.style.fill = '#8a7a52';
+    }
   }
 
   setAutoplayLimits(winMult: number, lossMult: number): void {
@@ -290,7 +325,9 @@ export class Ui extends Container {
   }
 
   /** Вешает тултип на цель: панелька над кнопкой (below — под ней). */
-  private attachTip(target: Container, text: string, below = false): void {
+  private attachTip(target: Container, text: string): void {
+    // Кнопки в верхней трети экрана — тултип снизу, иначе уедет за край браузера
+    const below = target.y + target.height / 2 < DESIGN_H / 3;
     target.on('pointerover', () => this.showTip(target, text, below));
     target.on('pointerout', () => this.hideTip());
   }

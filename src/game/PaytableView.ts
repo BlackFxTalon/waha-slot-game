@@ -23,7 +23,10 @@ export class PaytableView extends Container {
     const W = 1240;
     const H = 880;
     this.panel = makePanel(W, H, 16);
-    this.panel.position.set((DESIGN_W - W) / 2, (DESIGN_H - H) / 2);
+    // В узких режимах панель масштабируется под ширину экрана
+    const panelK = Math.min(1, (DESIGN_W - 32) / W);
+    this.panel.scale.set(panelK);
+    this.panel.position.set((DESIGN_W - W * panelK) / 2, (DESIGN_H - H * panelK) / 2);
     this.addChild(this.panel);
 
     const title = makeText('ТАБЛИЦА ВЫПЛАТ', 44, COLORS.goldBright, 'bold', 6);

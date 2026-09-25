@@ -3,7 +3,7 @@
  * idle → spinning → presenting/bigwin → idle (→ autoplay → spinning…),
  * ввод (мышь + клавиатура), баланс/ставки, сохранение в localStorage.
  */
-import { Application, Container, Sprite } from 'pixi.js';
+import { Application, Container, Sprite, Ticker } from 'pixi.js';
 import {
   AUTOPLAY_PRESETS,
   BIG_WIN_TIERS,
@@ -102,7 +102,11 @@ export class Game extends Container {
   private autoplayStartBalance = 0;
   private embers!: Embers;
 
-  constructor(app: Application, assets: GameAssets) {
+  private tickerHandler: ((ticker: Ticker) => void) | null = null;
+  private keyHandler: ((e: KeyboardEvent) => void) | null = null;
+
+
+  constructor(private app: Application, assets: GameAssets) {
     super();
     const save = loadSave();
     this.balance = save.balance;
@@ -117,10 +121,11 @@ export class Game extends Container {
     this.forceWild = new URLSearchParams(window.location.search).has('forceWild');
     audio.setMuted(this.muted);
 
-    // ── Фон ────────────────────────────────────────────────────────
+    // ── Фон: cover (в портрете центр собора, бока уходят за экран) ──
     const bgSprite = new Sprite(assets.bg);
-    bgSprite.width = DESIGN_W;
-    bgSprite.height = DESIGN_H;
+    const coverK = Math.max(DESIGN_W / assets.bg.width, DESIGN_H / assets.bg.height);
+    bgSprite.scale.set(coverK);
+    bgSprite.position.set((DESIGN_W - assets.bg.width * coverK) / 2, (DESIGN_H - assets.bg.height * coverK) / 2);
     this.addChild(bgSprite);
 
     // ── Эмберы ─────────────────────────────────────────────────────
@@ -162,7 +167,7 @@ export class Game extends Container {
     this.ui.setWin(0);
 
     // ── Клавиатура ─────────────────────────────────────────────────
-    window.addEventListener('keydown', (e) => {
+    this.keyHandler = (e: KeyboardEvent) => {
       audio.unlock();
       if (e.repeat) return;
       switch (e.code) {
@@ -192,7 +197,8 @@ export class Game extends Container {
           if (this.paytable.open) this.paytable.close();
           break;
       }
-    });
+    };
+    window.addEventListener('keydown', this.keyHandler);
     window.addEventListener('pointerdown', () => audio.unlock());
 
     // Отладочный хук для smoke-тестов (?debug=1): сверка сетки и результата
@@ -208,7 +214,7 @@ export class Game extends Container {
     }
 
     // ── Тикер ──────────────────────────────────────────────────────
-    app.ticker.add((ticker) => {
+    this.tickerHandler = (ticker) => {
       const dt = ticker.deltaMS;
       this.embers.update(dt);
       this.reels.update(dt);
@@ -222,7 +228,16 @@ export class Game extends Container {
         else this.balanceShown += step;
         this.ui.setBalance(this.balanceShown);
       }
-    });
+    };
+    if (this.tickerHandler) app.ticker.add(this.tickerHandler);
+  }
+
+  /** Корректное освобождение (пересоздание при смене ориентации). */
+  override destroy(options?: { children?: boolean; texture?: boolean }): void {
+    if (this.tickerHandler) this.app.ticker.remove(this.tickerHandler);
+    if (this.keyHandler) window.removeEventListener('keydown', this.keyHandler);
+    this.stopAutoplay();
+    super.destroy(options);
   }
 
   // ── Действия игрока ──────────────────────────────────────────────
