@@ -34,7 +34,7 @@ export class PaytableView extends Container {
     // --- Wild: баннер над таблицей ---
     const tableX = 56;
     const wild = SYMBOLS.find((d) => d.id === 'wild')!;
-    const wildY = 112;
+    const wildY = 100;
     const wildIcon = new Sprite(symbols.wild);
     wildIcon.anchor.set(0.5);
     wildIcon.scale.set((72 / ATLAS.cell) * 1.05);
@@ -54,8 +54,8 @@ export class PaytableView extends Container {
     // --- Символы: 3 колонки × 3 ряда (без wild) ---
     const iconSize = 64;
     const colW = 380;
-    const rowH = 118;
-    const tableY = wildY + 92;
+    const rowH = 106;
+    const tableY = wildY + 84;
     SYMBOLS.filter((d) => d.id !== 'wild').forEach((def, i) => {
       const col = i % 3;
       const row = Math.floor(i / 3);
@@ -92,13 +92,13 @@ export class PaytableView extends Container {
 
     // --- Схема линий: 10 мини-сеток 5×3 ---
     const linesTitle = makeText('ЛИНИИ ВЫПЛАТ', 26, COLORS.goldBright, 'bold', 4);
-    linesTitle.position.set(tableX, tableY + 3 * rowH + 48);
+    linesTitle.position.set(tableX, tableY + 3 * rowH + 40);
     this.panel.addChild(linesTitle);
 
     const miniCell = 13;
     const miniGapX = 92;
-    const miniGapY = 74;
-    const linesY = tableY + 3 * rowH + 92;
+    const miniGapY = 66;
+    const linesY = tableY + 3 * rowH + 80;
     LINES.forEach((line, li) => {
       const lx = tableX + (li % 5) * miniGapX;
       const ly = linesY + Math.floor(li / 5) * miniGapY;
@@ -117,26 +117,26 @@ export class PaytableView extends Container {
     });
 
     // --- Правила ---
-    const rulesY = linesY + 2 * miniGapY + 16;
+    const rulesY = linesY + 2 * miniGapY + 10;
     const rules = makeText(
       'Выигрыш считается слева направо, начиная с крайнего левого барабана. ' +
       'Выплачивается только самая длинная серия на каждой линии. Выигрыши по разным линиям суммируются. ' +
       'Барабаны останавливаются поочерёдно; при 4 одинаковых символах на линии пятый барабан замедляется. ' +
       'Выигрыш от 15× общей ставки открывает БОЛЬШОЙ ВЫИГРЫШ, от 30× — МЕГА, от 60× — БОЖЕСТВЕННЫЙ.',
-      19,
+      17,
       '#b9a86f',
       'normal',
       0,
     );
     rules.style.wordWrap = true;
     rules.style.wordWrapWidth = W - 120;
-    rules.style.lineHeight = 27;
+    rules.style.lineHeight = 24;
     rules.position.set(tableX, rulesY);
     this.panel.addChild(rules);
 
     const hint = makeText('ESC / i / клик мимо — закрыть', 18, '#6e5e3c', 'normal', 2);
     hint.anchor.set(0.5, 0);
-    hint.position.set(W / 2, H - 34);
+    hint.position.set(W / 2, H - 28);
     this.panel.addChild(hint);
 
     // Клик мимо панели закрывает
