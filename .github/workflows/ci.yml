@@ -24,10 +24,10 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Математика: selftest (инварианты)
+      - name: "Математика: selftest (инварианты)"
         run: npm run selftest
 
-      - name: Математика: RTP (1 млн спинов)
+      - name: "Математика: RTP (1 млн спинов)"
         run: npx tsx tools/simulate.ts 1000000
 
       - name: Сборка
