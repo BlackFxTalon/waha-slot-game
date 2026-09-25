@@ -50,6 +50,7 @@ export class ReelsView extends Container {
   private anticipationActive = false;
   private anticipateRequested = false;
   private fastStopRequested = false;
+  private turbo = false;
   private stops: number[] = [];
   private callbacks: ReelsCallbacks = {};
   private stoppedCount = 0;
@@ -123,13 +124,15 @@ export class ReelsView extends Container {
     return this.states.some((s) => s.phase !== 'idle');
   }
 
-  startSpin(stops: number[], anticipate: boolean, callbacks: ReelsCallbacks): void {
+  startSpin(stops: number[], anticipate: boolean, turbo: boolean, callbacks: ReelsCallbacks): void {
     this.stops = stops;
     this.callbacks = callbacks;
     this.anticipateRequested = anticipate;
     this.fastStopRequested = false;
     this.anticipationActive = false;
     this.stoppedCount = 0;
+    this.turbo = turbo;
+    const vf = turbo ? TIMING.turboTimeFactor : 1;
 
     this.states.forEach((st, i) => {
       const extra = anticipate && i === REELS - 1 ? TIMING.anticipationMinMs : 0;
@@ -137,7 +140,7 @@ export class ReelsView extends Container {
       st.clock = 0;
       st.t = 0;
       st.fastFactor = 1;
-      st.stopAt = TIMING.reelSpinUpMs + TIMING.reelStopGapMs * (i + 1) + extra;
+      st.stopAt = (TIMING.reelSpinUpMs + TIMING.reelStopGapMs * (i + 1)) * vf + extra;
       st.speed = 0;
     });
     this.renderCells();
@@ -167,6 +170,8 @@ export class ReelsView extends Container {
     }
     if (!this.spinning) return;
     const dt = Math.min(dtMs, 50) / 1000;
+    const vmax = VMAX * (this.turbo ? TIMING.turboSpeedFactor : 1);
+    const tf = this.turbo ? TIMING.turboTimeFactor : 1;
 
     this.states.forEach((st, i) => {
       if (st.phase === 'idle') return;
@@ -174,14 +179,14 @@ export class ReelsView extends Container {
 
       switch (st.phase) {
         case 'spinup': {
-          const k = Math.min(1, st.clock / TIMING.reelSpinUpMs);
-          st.speed = VMAX * k * k;
+          const k = Math.min(1, st.clock / (TIMING.reelSpinUpMs * tf));
+          st.speed = vmax * k * k;
           st.pos += st.speed * dt;
           if (k >= 1) st.phase = 'cruise';
           break;
         }
         case 'cruise': {
-          st.speed = VMAX;
+          st.speed = vmax;
           st.pos += st.speed * dt;
           if (st.stopAt !== null && st.clock >= st.stopAt) this.beginStopping(st);
           break;
@@ -199,7 +204,7 @@ export class ReelsView extends Container {
         }
         case 'stoppingSlow': {
           st.t += dtMs;
-          const u = Math.min(1, st.t / DRIFT_MS);
+          const u = Math.min(1, st.t / (DRIFT_MS * tf));
           const e = easeOutCubic(u);
           st.pos = st.targetPos - DRIFT_CELLS + DRIFT_CELLS * e;
           st.speed = VMAX * (1 - e) + 0.001;
@@ -211,7 +216,7 @@ export class ReelsView extends Container {
         }
         case 'bounce': {
           st.bounceT += dtMs;
-          const u = Math.min(1, st.bounceT / TIMING.reelStopBounceMs);
+          const u = Math.min(1, st.bounceT / (TIMING.reelStopBounceMs * tf));
           st.pos = st.targetPos + BOUNCE_CELLS * Math.sin(Math.PI * u) * (1 - u * 0.6);
           st.speed = 0.001;
           if (u >= 1) {

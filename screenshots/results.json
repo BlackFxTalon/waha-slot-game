@@ -2,8 +2,11 @@
   "errors": [],
   "pageErrors": [],
   "save": {
-    "balance": 14640,
+    "balance": 14810,
     "betIndex": 3,
-    "muted": false
+    "muted": false,
+    "turbo": false,
+    "winLimitMult": 0,
+    "lossLimitMult": 0
   }
 }

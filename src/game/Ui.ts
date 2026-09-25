@@ -14,6 +14,9 @@ export interface UiCallbacks {
   onAutoplay: () => void;
   onPaytable: () => void;
   onMute: () => void;
+  onTurbo: () => void;
+  onWinLimit: () => void;
+  onLossLimit: () => void;
 }
 
 const fmt = (n: number): string => Math.round(n).toLocaleString('ru-RU');
@@ -32,6 +35,12 @@ export class Ui extends Container {
   private betUpBtn: Button;
   private muteIcon: Container;
   private muteIconParts: Graphics;
+  private turboBtn: Button;
+  private turboBolt: Graphics;
+  private winLimitBtn: Button;
+  private lossLimitBtn: Button;
+  private winLimitLabel: Text;
+  private lossLimitLabel: Text;
   private autoplayRemaining: number | null = null;
 
   constructor(cb: UiCallbacks) {
@@ -158,6 +167,17 @@ export class Ui extends Container {
     spinIcon.fill({ color: COLORS.parchment });
     this.spinBtn.content.addChild(spinIcon);
 
+    // Турбо (слева от АВТО)
+    this.turboBtn = new Button(64, 64, 'rect', () => {
+      audio.uiClick();
+      cb.onTurbo();
+    }, { base: 0x241a06 });
+    this.turboBtn.position.set(DESIGN_W / 2 - 58 - 96 - 36 - 20 - 64, DESIGN_H - 74 - 32);
+    this.turboBolt = new Graphics();
+    this.turboBolt.position.set(32, 32);
+    this.turboBtn.content.addChild(this.turboBolt);
+    this.addChild(this.turboBtn);
+
     // Автоигра (слева от спина)
     this.autoBtn = new Button(96, 64, 'rect', () => {
       audio.uiClick();
@@ -182,6 +202,29 @@ export class Ui extends Container {
     this.toastText.alpha = 0;
     this.addChild(this.toastText);
 
+    // Лимиты автоигры (верхняя панель, центр)
+    this.winLimitBtn = new Button(240, 40, 'rect', () => {
+      audio.uiClick();
+      cb.onWinLimit();
+    });
+    this.winLimitBtn.position.set(DESIGN_W / 2 - 250 - 12, TOP_BAR.h / 2 - 20);
+    this.winLimitLabel = makeText('', 19, COLORS.parchment, 'bold', 1);
+    this.winLimitLabel.anchor.set(0.5);
+    this.winLimitLabel.position.set(120, 20);
+    this.winLimitBtn.content.addChild(this.winLimitLabel);
+    this.addChild(this.winLimitBtn);
+
+    this.lossLimitBtn = new Button(240, 40, 'rect', () => {
+      audio.uiClick();
+      cb.onLossLimit();
+    });
+    this.lossLimitBtn.position.set(DESIGN_W / 2 + 12, TOP_BAR.h / 2 - 20);
+    this.lossLimitLabel = makeText('', 19, COLORS.parchment, 'bold', 1);
+    this.lossLimitLabel.anchor.set(0.5);
+    this.lossLimitLabel.position.set(120, 20);
+    this.lossLimitBtn.content.addChild(this.lossLimitLabel);
+    this.addChild(this.lossLimitBtn);
+
     this.addChild(this.makeLinesHint());
   }
 
@@ -192,6 +235,32 @@ export class Ui extends Container {
     t.position.set(0, 22);
     c.addChild(t);
     return c;
+  }
+
+  private drawTurboBolt(on: boolean): void {
+    const g = this.turboBolt.clear();
+    const color = on ? 0x1a1208 : COLORS.parchment;
+    if (on) {
+      // Золотая подложка-заряд
+      g.poly([0, -17, 9, -4, 4, -4, 10, 17, -8, 1, -2, 1, -9, 12])
+        .fill({ color: 0xf1d97a, alpha: 0.25 });
+    }
+    g.poly([1, -16, 8, -4, 3, -4, 9, 15, -9, 0, -3, 0, -8, 14])
+      .fill({ color })
+      .stroke({ color: on ? COLORS.goldBright : 0x5a4a30, width: 1.5 });
+  }
+
+  setTurbo(on: boolean): void {
+    this.drawTurboBolt(on);
+    this.turboBtn.setEnabled(true);
+    this.turboBtn.alpha = on ? 1 : 0.75;
+  }
+
+  setAutoplayLimits(winMult: number, lossMult: number): void {
+    this.winLimitLabel.text = winMult > 0 ? `ВЫИГРЫШ ≥ ${winMult}×` : 'ВЫИГРЫШ ≥ выкл';
+    this.lossLimitLabel.text = lossMult > 0 ? `ПРОИГРЫШ ≤ ${lossMult}×` : 'ПРОИГРЫШ ≤ выкл';
+    this.winLimitLabel.style.fill = winMult > 0 ? COLORS.goldBright : '#6a5a3a';
+    this.lossLimitLabel.style.fill = lossMult > 0 ? COLORS.goldBright : '#6a5a3a';
   }
 
   private drawMuteIcon(muted: boolean): void {

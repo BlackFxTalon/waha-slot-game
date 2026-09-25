@@ -1,5 +1,5 @@
 /**
- * Проверка RTP: точный аналитический расчёт + Монте-Карло.
+ * Проверка RTP: точный аналитический расчёт (с учётом wild) + Монте-Карло.
  * Использует ТОТ ЖЕ конфиг, что и игра (src/game/config.ts).
  *
  * Запуск: npm run simulate [-- spins]
@@ -9,38 +9,56 @@ import {
   gridFromStops,
   pickStops,
 } from '../src/game/math';
-import { LINE_BETS, LINES, STRIPS, SYMBOLS, mulberry32Seed } from './simulate-shared';
+import { LINE_BETS, LINES, STRIPS, SYMBOL_BY_ID, type SymbolId } from '../src/game/config';
+import { mulberry32 } from '../src/core/rng';
 
-function exactExpectation(lineBetIndex: number): { rtp: number; perSymbol: Map<string, number> } {
-  // Вероятность символа s на барабане r в конкретной строке линии:
-  // q = count_r(s) / len_r (позиция остановки равномерна, ленты без соседних
-  // одинаковых символов — приближение точное с высокой точностью).
-  const q = STRIPS.map((strip) => {
-    const m = new Map<string, number>();
+/**
+ * Точный расчёт по одной линии: перебор всех кортежей символов
+ * (s0..s4) с их вероятностями; для каждого кортежа — лучший
+ * wild-кандидат (та же логика, что в evaluate()).
+ */
+function exactExpectation(lineBetIndex: number): { rtp: number; perSymbol: Map<SymbolId, number> } {
+  const perReel = STRIPS.map((strip) => {
+    const m = new Map<SymbolId, number>();
     for (const s of strip) m.set(s, (m.get(s) ?? 0) + 1);
     for (const [k, v] of m) m.set(k, v / strip.length);
-    return m;
+    return [...m.entries()];
   });
 
-  const lineBet = LINE_BETS[lineBetIndex];
-  const perSymbol = new Map<string, number>();
-  let rtp = 0;
+  const perSymbol = new Map<SymbolId, number>();
+  let totalPerLineBet = 0; // ожидание на линию при lineBet = 1
 
-  for (let li = 0; li < LINES.length; li++) {
-    for (const sym of SYMBOLS) {
-      const ps = q.map((m) => m.get(sym.id) ?? 0);
-      const p3 = ps[0] * ps[1] * ps[2];
-      const p4 = p3 * ps[3];
-      const p5 = p4 * ps[4];
-      const pays = sym.pays;
-      const exp = (p3 * (1 - ps[3]) * pays[0] + p4 * (1 - ps[4]) * pays[1] + p5 * pays[2]) * lineBet;
-      rtp += exp;
-      perSymbol.set(sym.id, (perSymbol.get(sym.id) ?? 0) + exp);
+  const bestLinePay = (tuple: SymbolId[]): { s: SymbolId; pay: number } | null => {
+    let best: { s: SymbolId; pay: number } | null = null;
+    for (const s of new Set<SymbolId>(tuple)) {
+      let count = 0;
+      while (count < 5 && (tuple[count] === s || tuple[count] === 'wild')) count++;
+      if (count < 3) continue;
+      const pay = SYMBOL_BY_ID[s].pays[count - 3];
+      if (best === null || pay > best.pay) best = { s, pay };
     }
-  }
-  // RTP относительно общей ставки = 10 × lineBet; LINES.length = 10,
-  // поэтому rtp (сумма по 10 линиям) уже нормирована корректно.
-  return { rtp: rtp / (LINE_BETS[lineBetIndex] * LINES.length), perSymbol };
+    return best;
+  };
+
+  const rec = (line: readonly number[], r: number, tuple: SymbolId[], prob: number): void => {
+    if (r === 5) {
+      const w = bestLinePay(tuple);
+      if (w) {
+        totalPerLineBet += prob * w.pay;
+        perSymbol.set(w.s, (perSymbol.get(w.s) ?? 0) + prob * w.pay);
+      }
+      return;
+    }
+    for (const [s, p] of perReel[r]) {
+      tuple.push(s);
+      rec(line, r + 1, tuple, prob * p);
+      tuple.pop();
+    }
+  };
+
+  for (let li = 0; li < LINES.length; li++) rec(LINES[li], 0, [], 1);
+
+  return { rtp: totalPerLineBet / LINES.length, perSymbol };
 }
 
 function main() {
@@ -54,17 +72,17 @@ function main() {
   console.log('══════════════════════════════════════════════════');
 
   const { rtp, perSymbol } = exactExpectation(lineBetIndex);
-  console.log(`\nТочный расчёт (аналитический):`);
+  console.log(`\nТочный расчёт (аналитический, с wild):`);
   console.log(`  RTP ≈ ${(rtp * 100).toFixed(2)}%`);
   for (const [id, v] of [...perSymbol.entries()].sort((a, b) => b[1] - a[1])) {
-    console.log(`    ${id.padEnd(10)} вклад в RTP: ${((v / (totalBet)) * 100).toFixed(2)}%`);
+    console.log(`    ${id.padEnd(10)} вклад в RTP: ${(v * 100).toFixed(2)}%`);
   }
 
   // Монте-Карло
-  const rng = mulberry32Seed(20260925);
+  const rng = mulberry32(20260925);
   let totalWin = 0;
   let hits = 0;
-  const dist = new Map<string, number>();
+  const dist = new Map<number, number>();
   const t0 = Date.now();
   for (let i = 0; i < spins; i++) {
     const stops = pickStops(rng);
@@ -75,7 +93,7 @@ function main() {
     if (pay > 0) {
       hits++;
       const x = Math.round(pay / totalBet);
-      dist.set(String(x), (dist.get(String(x)) ?? 0) + 1);
+      dist.set(x, (dist.get(x) ?? 0) + 1);
     }
   }
   const mcRtp = totalWin / (spins * totalBet);
@@ -83,14 +101,14 @@ function main() {
   console.log(`  RTP  = ${(mcRtp * 100).toFixed(2)}%`);
   console.log(`  Hit rate = ${((hits / spins) * 100).toFixed(2)}%`);
   const top = [...dist.entries()]
-    .map(([x, n]) => [Number(x), n] as const)
+    .map(([x, n]) => [x, n] as const)
     .sort((a, b) => b[0] - a[0])
     .slice(0, 8);
-  console.log('  Крупнейшие выплаты (×общая ставки : частота):');
+  console.log('  Крупнейшие выплаты (×общей ставки : частота):');
   for (const [x, n] of top) console.log(`    ${String(x).padStart(5)}× : 1 к ${Math.round(spins / n).toLocaleString('ru')}`);
 
   const ok = mcRtp >= 0.92 && mcRtp <= 0.96;
-  console.log(`\nЦелевой диапазон 92–96%: ${ok ? '✔ ВЫПОЛНЕН' : '✘ НЕ ВЫПОЛНЕН — подстроить STRIP_COMPOSITION/pays'}`);
+  console.log(`\nЦелевой диапазон 92–96%: ${ok ? '✔ ВЫПОЛНЕН' : '✘ НЕ ВЫПОЛНЕН — подстроить STRIP_COUNTS/pays'}`);
   process.exitCode = ok ? 0 : 1;
 }
 

@@ -72,7 +72,7 @@ export class BigWinOverlay extends Container {
   show(winAmount: number, bet: number, onDone: () => void): void {
     void bet;
     const mult = winAmount / bet;
-    const tier = [...BIG_WIN_TIERS].reverse().find((t) => mult >= t.mult) ?? BIG_WIN_TIERS[BIG_WIN_TIERS.length - 1];
+    const tier = [...BIG_WIN_TIERS].sort((a, b) => b.mult - a.mult).find((t) => mult >= t.mult) ?? BIG_WIN_TIERS[BIG_WIN_TIERS.length - 1];
     this.title.text = tier.title;
     this.amount.text = '0';
     this.shown = 0;

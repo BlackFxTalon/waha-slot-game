@@ -55,36 +55,56 @@ export function spinResult(stops: number[], lineBetIndex: number): SpinResult {
 }
 
 /**
- * Оценка выигрыша: по всем линиям слева направо, 3/4/5 одинаковых.
- * Выплата = pays[count-3] × ставка_на_линию.
+ * Оценка выигрыша: по всем линиям слева направо, серии 3/4/5.
+ * Wild заменяет любой символ; для каждой линии выбирается лучший кандидат
+ * (максимальная выплата) среди всех символов, встречающихся на линии.
  */
 export function evaluate(grid: Grid, lineBetIndex: number): LineWin[] {
   const lineBet = LINE_BETS[lineBetIndex];
   const wins: LineWin[] = [];
   for (let li = 0; li < LINES.length; li++) {
     const line = LINES[li];
-    const first: SymbolId = grid[0][line[0]];
-    let count = 1;
-    while (count < REELS && grid[count][line[count]] === first) count++;
-    if (count < 3) continue;
-    const def = SYMBOL_BY_ID[first];
-    const pay = def.pays[count - 3] * lineBet;
-    const cells: Array<readonly [number, number]> = [];
-    for (let r = 0; r < count; r++) cells.push([r, line[r]] as const);
-    wins.push({ lineIndex: li, symbol: first, count, cells, pay });
+    const onLine: SymbolId[] = [];
+    for (let r = 0; r < REELS; r++) onLine.push(grid[r][line[r]]);
+
+    let best: LineWin | null = null;
+    for (const s of new Set<SymbolId>(onLine)) {
+      // Длина серии с левого края: кандидат s или wild
+      let count = 0;
+      while (count < REELS && (onLine[count] === s || onLine[count] === 'wild')) count++;
+      if (count < 3) continue;
+      const pay = SYMBOL_BY_ID[s].pays[count - 3] * lineBet;
+      if (best !== null && pay <= best.pay) continue;
+      const cells: Array<readonly [number, number]> = [];
+      for (let r = 0; r < count; r++) cells.push([r, line[r]] as const);
+      best = { lineIndex: li, symbol: s, count, cells, pay };
+    }
+    if (best) wins.push(best);
   }
   return wins;
 }
 
 /**
- * Anticipation 5-го барабана: есть ли после 4 барабанов серия из 4 одинаковых.
- * (Используется презентацией; решается по сетке, а не по анимации.)
+ * Anticipation 5-го барабана: есть ли после 4 барабанов серия из 4 совпадений
+ * (одинаковый символ или wild). Решается по сетке, а не по анимации.
  */
 export function needsAnticipation(grid: Grid): boolean {
   for (const line of LINES) {
-    const s0 = grid[0][line[0]];
-    let count = 1;
-    while (count < 4 && grid[count][line[count]] === s0) count++;
+    let base: SymbolId | null = null;
+    for (let r = 0; r < 4; r++) {
+      const c = grid[r][line[r]];
+      if (c !== 'wild') {
+        base = c;
+        break;
+      }
+    }
+    if (base === null) return true; // четыре wild подряд
+    let count = 0;
+    while (count < 4) {
+      const c = grid[count][line[count]];
+      if (c === base || c === 'wild') count++;
+      else break;
+    }
     if (count === 4) return true;
   }
   return false;

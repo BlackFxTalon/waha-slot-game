@@ -31,6 +31,7 @@ export const BG = {
 // ---------------------------------------------------------------------------
 
 export type SymbolId =
+  | 'wild'
   | 'crown'
   | 'diamond'
   | 'seven'
@@ -55,15 +56,16 @@ export interface SymbolDef {
 
 /** Порядок в списке — от старшего к младшему. */
 export const SYMBOLS: readonly SymbolDef[] = [
+  { id: 'wild',     name: 'Череп-реликвия WILD', atlas: [0, 0], pays: [60, 900, 20000], tier: 10 },
   { id: 'crown',    name: 'Корона императора', atlas: [0, 0], pays: [50, 800, 15000], tier: 9 },
   { id: 'diamond',  name: 'Бриллиант',         atlas: [2, 2], pays: [150, 1200, 6000], tier: 8 },
   { id: 'seven',    name: 'Семёрка',           atlas: [2, 1], pays: [60, 350, 2000],  tier: 7 },
-  { id: 'star',     name: 'Звезда',            atlas: [0, 2], pays: [35, 200, 1200],  tier: 6 },
-  { id: 'bell',     name: 'Колокол',           atlas: [1, 2], pays: [35, 200, 800],   tier: 5 },
-  { id: 'horseshoe',name: 'Подкова',           atlas: [1, 1], pays: [25, 200, 600],   tier: 4 },
-  { id: 'gemRed',   name: 'Красный кристалл',  atlas: [1, 0], pays: [20, 120, 400],   tier: 3 },
-  { id: 'gemGreen', name: 'Зелёный кристалл',  atlas: [2, 0], pays: [18, 80, 360],    tier: 2 },
-  { id: 'gemBlue',  name: 'Синий кристалл',    atlas: [0, 1], pays: [16, 70, 320],    tier: 1 },
+  { id: 'star',     name: 'Звезда',            atlas: [0, 2], pays: [24, 140, 830],  tier: 6 },
+  { id: 'bell',     name: 'Колокол',           atlas: [1, 2], pays: [24, 140, 555],   tier: 5 },
+  { id: 'horseshoe',name: 'Подкова',           atlas: [1, 1], pays: [18, 148, 440],   tier: 4 },
+  { id: 'gemRed',   name: 'Красный кристалл',  atlas: [1, 0], pays: [15, 88, 300],   tier: 3 },
+  { id: 'gemGreen', name: 'Зелёный кристалл',  atlas: [2, 0], pays: [12, 55, 250],    tier: 2 },
+  { id: 'gemBlue',  name: 'Синий кристалл',    atlas: [0, 1], pays: [11, 48, 220],    tier: 1 },
 ];
 
 export const SYMBOL_BY_ID: Record<SymbolId, SymbolDef> = Object.fromEntries(
@@ -107,6 +109,7 @@ export const START_BALANCE = 10_000;
  */
 const STRIP_COUNTS: Record<SymbolId, number[]> = {
   //        r1  r2  r3  r4  r5
+  wild:     [1, 1, 1, 1, 1],
   crown:    [3, 3, 3, 3, 3],
   diamond:  [2, 2, 2, 2, 2],
   seven:    [4, 4, 4, 4, 4],
@@ -182,6 +185,8 @@ export const TIMING = {
   winCountMs: 900,         // набегание суммы обычного выигрыша
   bigWinCountPerMult: 60,  // мс набегания на каждый ×ставки
   autoplayFastFactor: 0.45, // ускорение презентации в автоигре
+  turboTimeFactor: 0.45,    // турбо: множитель временных констант
+  turboSpeedFactor: 1.6,    // турбо: множитель скорости лент
 } as const;
 
 /** Ключ localStorage. */
@@ -189,3 +194,7 @@ export const SAVE_KEY = 'grim-fortune:save:v1';
 
 /** Ставки автоигры. Infinity обозначается -1. */
 export const AUTOPLAY_PRESETS = [10, 25, 50, -1] as const;
+
+/** Циклы лимитов автоигры: 0 = выключено (множители общей ставки). */
+export const WIN_LIMIT_MULTS = [0, 25, 50, 100] as const;
+export const LOSS_LIMIT_MULTS = [0, 25, 50, 100] as const;

@@ -112,4 +112,62 @@ test('anticipation: без 4 в ряд — не требуется', () => {
   assert.strictEqual(needsAnticipation(grid.map((r) => [...r]) as any), false);
 });
 
+test('wild замещает недостающий символ', () => {
+  const grid = [
+    ['gemGreen', 'wild', 'gemBlue'],
+    ['gemBlue', 'crown', 'gemGreen'],
+    ['gemRed', 'crown', 'gemRed'],
+    ['seven', 'gemBlue', 'gemGreen'],
+    ['star', 'gemGreen', 'gemBlue'],
+  ] as const;
+  const wins = evaluate(grid.map((r) => [...r]) as never, 3);
+  const line0 = wins.find((w) => w.lineIndex === 0)!;
+  assert.strictEqual(line0.symbol, 'crown');
+  assert.strictEqual(line0.count, 3);
+  assert.strictEqual(line0.pay, 50 * LINE_BETS[3]);
+});
+
+test('чисто wild-серия оплачивается по таблице wild', () => {
+  // 4 wild подряд; пятый символ (gemGreen 5ok = 360) дороже 3 wild (60),
+  // но дешевле 4 wild (900) — должен победить wild
+  const grid = [
+    ['gemBlue', 'wild', 'gemGreen'],
+    ['gemGreen', 'wild', 'gemBlue'],
+    ['gemRed', 'wild', 'gemRed'],
+    ['seven', 'wild', 'gemGreen'],
+    ['star', 'gemGreen', 'gemBlue'],
+  ] as const;
+  const wins = evaluate(grid.map((r) => [...r]) as never, 0);
+  const line0 = wins.find((w) => w.lineIndex === 0)!;
+  assert.strictEqual(line0.symbol, 'wild');
+  assert.strictEqual(line0.count, 4);
+  assert.strictEqual(line0.pay, 900 * LINE_BETS[0]);
+});
+
+test('wild + 4 короны = 5 корон (лучший кандидат)', () => {
+  const grid = [
+    ['gemBlue', 'wild', 'gemGreen'],
+    ['gemGreen', 'crown', 'gemBlue'],
+    ['gemRed', 'crown', 'gemRed'],
+    ['gemBlue', 'crown', 'gemGreen'],
+    ['gemGreen', 'crown', 'gemBlue'],
+  ] as const;
+  const wins = evaluate(grid.map((r) => [...r]) as never, 0);
+  const line0 = wins.find((w) => w.lineIndex === 0)!;
+  assert.strictEqual(line0.symbol, 'crown');
+  assert.strictEqual(line0.count, 5);
+  assert.strictEqual(line0.pay, 15000 * LINE_BETS[0]);
+});
+
+test('wild в anticipation считается совпадением', () => {
+  const grid = [
+    ['gemBlue', 'crown', 'gemGreen'],
+    ['gemGreen', 'wild', 'gemBlue'],
+    ['gemRed', 'crown', 'gemRed'],
+    ['gemBlue', 'crown', 'gemGreen'],
+    ['seven', 'gemGreen', 'gemBlue'],
+  ] as const;
+  assert.strictEqual(needsAnticipation(grid.map((r) => [...r]) as never), true);
+});
+
 console.log(`\nВсе проверки пройдены: ${passed}`);

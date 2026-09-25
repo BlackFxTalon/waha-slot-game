@@ -3,17 +3,19 @@
  * idle → spinning → presenting/bigwin → idle (→ autoplay → spinning…),
  * ввод (мышь + клавиатура), баланс/ставки, сохранение в localStorage.
  */
-import { Application, Container, Sprite } from 'pixi.js';
+import { Application, Container, Renderer, Sprite } from 'pixi.js';
 import {
   AUTOPLAY_PRESETS,
   BIG_WIN_TIERS,
   DEFAULT_LINE_BET_INDEX,
+  LOSS_LIMIT_MULTS,
   LINE_BETS,
   LINES,
   SAVE_KEY,
   START_BALANCE,
   STRIPS,
   TIMING,
+  WIN_LIMIT_MULTS,
 } from './config';
 import { DESIGN_H, DESIGN_W } from '../layout';
 import { needsAnticipation, pickStops, spinResult, type SpinResult } from './math';
@@ -23,6 +25,8 @@ import { BigWinOverlay } from './BigWinOverlay';
 import { PaytableView } from './PaytableView';
 import { Ui } from './Ui';
 import { audio } from '../audio';
+import { makeWildTexture } from './wildTexture';
+import { Embers } from './Embers';
 import type { GameAssets } from '../assets';
 
 type GameState = 'idle' | 'spinning' | 'presenting' | 'bigwin';
@@ -31,6 +35,9 @@ interface SaveData {
   balance: number;
   betIndex: number;
   muted: boolean;
+  turbo: boolean;
+  winLimitMult: number;
+  lossLimitMult: number;
 }
 
 function loadSave(): SaveData {
@@ -38,6 +45,9 @@ function loadSave(): SaveData {
     balance: START_BALANCE,
     betIndex: DEFAULT_LINE_BET_INDEX,
     muted: false,
+    turbo: false,
+    winLimitMult: 0,
+    lossLimitMult: 0,
   };
   try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -50,6 +60,9 @@ function loadSave(): SaveData {
           ? data.betIndex
           : DEFAULT_LINE_BET_INDEX,
       muted: data.muted === true,
+      turbo: data.turbo === true,
+      winLimitMult: typeof data.winLimitMult === 'number' ? data.winLimitMult : 0,
+      lossLimitMult: typeof data.lossLimitMult === 'number' ? data.lossLimitMult : 0,
     };
   } catch {
     return fallback;
@@ -83,6 +96,12 @@ export class Game extends Container {
   private balanceShown: number;
   private balanceTarget: number;
   private forceWin: boolean;
+  private forceWild: boolean;
+  private turbo: boolean;
+  private winLimitMult: number;
+  private lossLimitMult: number;
+  private autoplayStartBalance = 0;
+  private embers!: Embers;
 
   constructor(app: Application, assets: GameAssets) {
     super();
@@ -92,7 +111,11 @@ export class Game extends Container {
     this.balanceTarget = save.balance;
     this.betIndex = save.betIndex;
     this.muted = save.muted;
+    this.turbo = save.turbo;
+    this.winLimitMult = save.winLimitMult;
+    this.lossLimitMult = save.lossLimitMult;
     this.forceWin = new URLSearchParams(window.location.search).has('forceWin');
+    this.forceWild = new URLSearchParams(window.location.search).has('forceWild');
     audio.setMuted(this.muted);
 
     // ── Фон ────────────────────────────────────────────────────────
@@ -100,6 +123,13 @@ export class Game extends Container {
     bgSprite.width = DESIGN_W;
     bgSprite.height = DESIGN_H;
     this.addChild(bgSprite);
+
+    // Wild: текстура генерируется вектором и кладётся в общий реестр
+    assets.symbols.wild = this.makeWildTexture(app.renderer as Renderer);
+
+    // ── Эмберы ─────────────────────────────────────────────────────
+    this.embers = new Embers();
+    this.addChild(this.embers);
 
     // ── Барабаны ───────────────────────────────────────────────────
     this.reels = new ReelsView(assets.symbols);
@@ -119,8 +149,13 @@ export class Game extends Container {
       onAutoplay: () => this.toggleAutoplay(),
       onPaytable: () => this.togglePaytable(),
       onMute: () => this.toggleMute(),
+      onTurbo: () => this.toggleTurbo(),
+      onWinLimit: () => this.cycleWinLimit(),
+      onLossLimit: () => this.cycleLossLimit(),
     });
     this.addChild(this.ui);
+    this.ui.setTurbo(this.turbo);
+    this.ui.setAutoplayLimits(this.winLimitMult, this.lossLimitMult);
 
     // Оверлеи поверх HUD: таблица выплат и Big Win
     this.addChild(this.paytable);
@@ -179,6 +214,7 @@ export class Game extends Container {
     // ── Тикер ──────────────────────────────────────────────────────
     app.ticker.add((ticker) => {
       const dt = ticker.deltaMS;
+      this.embers.update(dt);
       this.reels.update(dt);
       this.presenter.update(dt);
       this.bigWin.update(dt);
@@ -244,7 +280,13 @@ export class Game extends Container {
 
     // Исход фиксируется ДО анимации и не меняется
     let stops = pickStops(Math.random);
-    if (this.forceWin) {
+    if (this.forceWild) {
+      // Тестовый режим (?forceWild=1): wild по центральной линии на всех барабанах
+      stops = STRIPS.map((strip) => {
+        const L = strip.length;
+        return (strip.indexOf('wild') - 1 + L) % L;
+      });
+    } else if (this.forceWin) {
       // Тестовый режим (?forceWin=1): три короны по центральной линии
       const crown = (reel: number): number => {
         const L = STRIPS[reel].length;
@@ -257,7 +299,7 @@ export class Game extends Container {
     const anticipate = needsAnticipation(result.grid);
 
     audio.spinStart();
-    this.reels.startSpin(stops, anticipate, {
+    this.reels.startSpin(stops, anticipate, this.turbo, {
       onReelStop: (i) => audio.reelStop(i),
       onAnticipation: (active) => audio.anticipation(active),
       onAllStopped: () => this.onReelsStopped(),
@@ -281,6 +323,7 @@ export class Game extends Container {
       this.persist();
       this.presenter.present(result, (r, row) => this.reels.cellSprite(r, row), {
         fast: false,
+        turbo: this.turbo,
         flash: true,
         onCount: () => undefined,
         onDone: () => undefined,
@@ -293,6 +336,7 @@ export class Game extends Container {
       this.persist();
       this.presenter.present(result, (r, row) => this.reels.cellSprite(r, row), {
         fast: this.autoplayRemaining !== null,
+        turbo: this.turbo,
         flash: false,
         onCount: (shown) => this.ui.setWin(shown),
         onDone: () => this.finishCycle(),
@@ -310,6 +354,19 @@ export class Game extends Container {
     if (this.autoplayRemaining === 0) {
       this.stopAutoplay();
       this.ui.toast('Серия автоигры завершена');
+      return;
+    }
+    // Лимиты автоигры — накопительно от старта серии
+    const net = this.balance - this.autoplayStartBalance;
+    const bet = this.totalBet();
+    if (this.winLimitMult > 0 && net >= this.winLimitMult * bet) {
+      this.stopAutoplay();
+      this.ui.toast('Лимит выигрыша достигнут — автоигра остановлена');
+      return;
+    }
+    if (this.lossLimitMult > 0 && -net >= this.lossLimitMult * bet) {
+      this.stopAutoplay();
+      this.ui.toast('Лимит проигрыша — автоигра остановлена');
       return;
     }
     // Пауза между авто-спинами — короче в режиме автоигры
@@ -345,6 +402,7 @@ export class Game extends Container {
     const preset = AUTOPLAY_PRESETS[this.autoplayPresetIndex];
     this.autoplayPresetIndex = (this.autoplayPresetIndex + 1) % AUTOPLAY_PRESETS.length;
     this.autoplayRemaining = preset === -1 ? Number.POSITIVE_INFINITY : preset;
+    this.autoplayStartBalance = this.balance;
     this.ui.setAutoplay(this.autoplayRemaining);
     if (this.state === 'idle') this.spin();
   }
@@ -371,7 +429,39 @@ export class Game extends Container {
     this.persist();
   }
 
+  private toggleTurbo(): void {
+    this.turbo = !this.turbo;
+    this.ui.setTurbo(this.turbo);
+    this.persist();
+  }
+
+  private cycleWinLimit(): void {
+    const idx = (WIN_LIMIT_MULTS.indexOf(this.winLimitMult as never) + 1) % WIN_LIMIT_MULTS.length;
+    this.winLimitMult = WIN_LIMIT_MULTS[idx];
+    this.ui.setAutoplayLimits(this.winLimitMult, this.lossLimitMult);
+    this.persist();
+  }
+
+  private cycleLossLimit(): void {
+    const idx = (LOSS_LIMIT_MULTS.indexOf(this.lossLimitMult as never) + 1) % LOSS_LIMIT_MULTS.length;
+    this.lossLimitMult = LOSS_LIMIT_MULTS[idx];
+    this.ui.setAutoplayLimits(this.winLimitMult, this.lossLimitMult);
+    this.persist();
+  }
+
+  /** Векторный wild: золотая рамка + череп + плашка WILD. */
+  private makeWildTexture(renderer: Renderer): import('pixi.js').Texture {
+    return makeWildTexture(renderer);
+  }
+
   private persist(): void {
-    saveGame({ balance: this.balance, betIndex: this.betIndex, muted: this.muted });
+    saveGame({
+      balance: this.balance,
+      betIndex: this.betIndex,
+      muted: this.muted,
+      turbo: this.turbo,
+      winLimitMult: this.winLimitMult,
+      lossLimitMult: this.lossLimitMult,
+    });
   }
 }

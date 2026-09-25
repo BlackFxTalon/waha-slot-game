@@ -23,8 +23,10 @@ interface WinCellRef {
 }
 
 export interface PresentOptions {
-  /** Ускоренная презентация (автоигра). */
+  /** Ускоренная презентация (автоигра или турбо). */
   fast: boolean;
+  /** Турбо-режим. */
+  turbo: boolean;
   /** Режим flash: без цикла линий (для Big Win). */
   flash: boolean;
   onCount: (shownWin: number) => void;
@@ -64,7 +66,7 @@ export class WinPresenter extends Container {
     this.opts = opts;
     this.wins = result.wins;
     this.clock = 0;
-    const speed = opts.fast ? TIMING.autoplayFastFactor : 1;
+    const speed = opts.fast || opts.turbo ? TIMING.autoplayFastFactor : 1;
 
     // Затемнение невыигравших ячеек
     const winning = new Set<string>();
@@ -132,7 +134,7 @@ export class WinPresenter extends Container {
   update(dtMs: number): void {
     if (!this.active) return;
     this.clock += dtMs;
-    const speed = this.opts?.fast ? TIMING.autoplayFastFactor : 1;
+    const speed = this.opts?.fast || this.opts?.turbo ? TIMING.autoplayFastFactor : 1;
 
     // Пульс выигрышных символов
     const t = this.clock / 1000;

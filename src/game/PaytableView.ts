@@ -31,13 +31,32 @@ export class PaytableView extends Container {
     title.position.set(W / 2, 58);
     this.panel.addChild(title);
 
-    // --- Символы: 3 колонки × 3 ряда ---
+    // --- Wild: баннер над таблицей ---
+    const tableX = 56;
+    const wild = SYMBOLS.find((d) => d.id === 'wild')!;
+    const wildY = 112;
+    const wildIcon = new Sprite(symbols.wild);
+    wildIcon.anchor.set(0.5);
+    wildIcon.scale.set((72 / ATLAS.cell) * 1.05);
+    wildIcon.position.set(tableX + 36 + 0, wildY + 36);
+    this.panel.addChild(wildIcon);
+    const wildName = makeText('ЧЕРЕП-РЕЛИКВИЯ — WILD', 22, COLORS.goldBright, 'bold', 2);
+    wildName.position.set(tableX + 92, wildY + 12);
+    this.panel.addChild(wildName);
+    const wildPays = makeText(
+      `3 — ×${wild.pays[0]}   4 — ×${wild.pays[1]}   5 — ×${wild.pays[2]}   ·   заменяет любой символ в линии`,
+      18,
+      '#b9a86f',
+    );
+    wildPays.position.set(tableX + 92, wildY + 44);
+    this.panel.addChild(wildPays);
+
+    // --- Символы: 3 колонки × 3 ряда (без wild) ---
     const iconSize = 64;
     const colW = 380;
     const rowH = 118;
-    const tableX = 56;
-    const tableY = 120;
-    SYMBOLS.forEach((def, i) => {
+    const tableY = wildY + 92;
+    SYMBOLS.filter((d) => d.id !== 'wild').forEach((def, i) => {
       const col = i % 3;
       const row = Math.floor(i / 3);
       const x = tableX + col * colW;
