@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Зависимости
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Математика: selftest (инварианты)
+        run: npm run selftest
+
+      - name: Математика: RTP (1 млн спинов)
+        run: npx tsx tools/simulate.ts 1000000
+
+      - name: Сборка
+        run: npm run build
+
+      - name: Кэш браузеров Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Установка Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke-тест (headless)
+        run: node tools/smoke.mjs
+
+      - name: Скриншоты (артефакт)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-screenshots
+          path: screenshots/
+          retention-days: 7
