@@ -6,7 +6,10 @@
 import { Container, Graphics, Sprite } from 'pixi.js';
 import { CELL, REELS_AREA, cellCenter } from '../layout';
 import { COLORS } from './ui/widgets';
-import { TIMING } from './config';
+import { ATLAS, TIMING } from './config';
+
+/** Базовый масштаб спрайта символа: текстура 418px → ячейка. */
+const SYM_SCALE = CELL / ATLAS.cell;
 import type { LineWin, SpinResult } from './math';
 import { audio } from '../audio';
 
@@ -131,7 +134,7 @@ export class WinPresenter extends Container {
     // Пульс выигрышных символов
     const t = this.clock / 1000;
     for (const wc of this.winCells) {
-      const s = 1 + 0.1 * Math.max(0, Math.sin(t * 6));
+      const s = SYM_SCALE * (1 + 0.05 * Math.max(0, Math.sin(t * 6)));
       wc.sprite.scale.set(s);
     }
 
@@ -189,7 +192,7 @@ export class WinPresenter extends Container {
       wc.sprite.anchor.set(0, 0);
       wc.sprite.x = 0;
       wc.sprite.y = wc.row * CELL;
-      wc.sprite.scale.set(1);
+      wc.sprite.scale.set(SYM_SCALE);
       wc.sprite.tint = 0xffffff;
       wc.sprite.alpha = 1;
     }

@@ -8,7 +8,7 @@
  * в точности сетку из gridFromStops().
  */
 import { BlurFilter, Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { REELS, ROWS, STRIPS, TIMING, type SymbolId } from './config';
+import { ATLAS, REELS, ROWS, STRIPS, TIMING, type SymbolId } from './config';
 import { CELL, REELS_AREA } from '../layout';
 
 const VISUAL_STRIPS: SymbolId[][] = STRIPS.map((s) => [...s].reverse());
@@ -74,8 +74,9 @@ export class ReelsView extends Container {
       const pool: Sprite[] = [];
       for (let k = 0; k < ROWS + 2; k++) {
         const sp = new Sprite();
-        sp.width = CELL;
-        sp.height = CELL;
+        // Размер задаём ТОЛЬКО через scale — иначе scale.set() в презентаторе
+        // перебьёт его и символ раздуется до полного размера текстуры
+        sp.scale.set(CELL / ATLAS.cell);
         reel.addChild(sp);
         pool.push(sp);
       }
@@ -95,6 +96,16 @@ export class ReelsView extends Container {
 
       this.blur.push(new BlurFilter({ strength: 6, quality: 2 }));
     }
+
+    // Мягкое затухание символов на краях окна — вместо жёсткой обрезки маской
+    const fade = new Graphics();
+    const STEP = 10;
+    for (let k = 0; k < 4; k++) {
+      const a = 0.55 - k * 0.14;
+      fade.rect(0, k * STEP, REELS * CELL, STEP).fill({ color: 0x0a0912, alpha: a });
+      fade.rect(0, CELL * ROWS - (k + 1) * STEP, REELS * CELL, STEP).fill({ color: 0x0a0912, alpha: a });
+    }
+    this.addChild(fade);
 
     // Пульсирующая рамка anticipation (5-й барабан)
     this.anticipFrame = new Graphics()

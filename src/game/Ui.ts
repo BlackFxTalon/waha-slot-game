@@ -124,14 +124,16 @@ export class Ui extends Container {
     this.addChild(this.betUpBtn);
 
     // Выигрыш (центр, над спином)
-    this.winLabel = makeText('ВЫИГРЫШ', 20, '#8a7a52', 'bold', 5);
+    // Счётчик выигрыша — над нижней панелью, на свободной зоне пола
+    // (не за кнопкой спина)
+    this.winLabel = makeText('ВЫИГРЫШ', 22, '#8a7a52', 'bold', 6);
     this.winLabel.anchor.set(0.5);
-    this.winLabel.position.set(DESIGN_W / 2, BOTTOM_BAR.y + 26);
+    this.winLabel.position.set(DESIGN_W / 2, 828);
     this.winLabel.visible = false;
     this.addChild(this.winLabel);
-    this.winText = makeText('', 44, COLORS.goldBright, 'bold', 2);
+    this.winText = makeText('', 48, COLORS.goldBright, 'bold', 3);
     this.winText.anchor.set(0.5);
-    this.winText.position.set(DESIGN_W / 2, BOTTOM_BAR.y + 60);
+    this.winText.position.set(DESIGN_W / 2, 878);
     this.addChild(this.winText);
 
     // Спин (центр)
@@ -194,16 +196,18 @@ export class Ui extends Container {
 
   private drawMuteIcon(muted: boolean): void {
     const g = this.muteIconParts.clear();
-    const color = muted ? 0x6a5a3a : COLORS.parchment;
-    // Динамик
-    g.poly([-10, -6, -3, -6, 6, -14, 6, 14, -3, 6, -10, 6])
-      .fill({ color });
+    const color = muted ? 0x8a7a52 : COLORS.parchment;
+    // Динамик: корпус + конус, симметрично по вертикали
+    g.roundRect(-15, -6, 8, 12, 2).fill({ color });
+    g.poly([-7, -6, 1, -13, 1, 13, -7, 6]).fill({ color });
     if (muted) {
-      g.moveTo(11, -8).lineTo(21, 8).moveTo(21, -8).lineTo(11, 8)
-        .stroke({ color: COLORS.redBright, width: 3.5, cap: 'round' });
+      // Красный крест — однозначный сигнал «выключено»
+      g.moveTo(9, -8).lineTo(20, 8).moveTo(20, -8).lineTo(9, 8)
+        .stroke({ color: COLORS.redBright, width: 4, cap: 'round' });
     } else {
-      g.arc(6, 0, 12, -0.9, 0.9).stroke({ color, width: 3, alpha: 0.9 });
-      g.arc(6, 0, 17, -0.8, 0.8).stroke({ color, width: 3, alpha: 0.5 });
+      // Две дуги-волны строго правее конуса, ничего не пересекают
+      g.arc(1, 0, 8, -0.8, 0.8).stroke({ color, width: 3.5, cap: 'round' });
+      g.arc(1, 0, 14, -0.7, 0.7).stroke({ color, width: 3.5, cap: 'round', alpha: 0.6 });
     }
   }
 
