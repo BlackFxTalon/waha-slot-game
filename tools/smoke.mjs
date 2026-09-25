@@ -168,11 +168,18 @@ try {
   }, { timeout: 45000 });
   const mBal = await m.evaluate(() => {
     const d = window.__grim;
-    return { balance: d.balance(), hist: d.history().length };
+    return { balance: d.balance(), hist: d.history() };
   });
   await m.screenshot({ path: shotsDir + '11-portrait.png' });
-  if (mBal.hist < 1) errors.push('Портрет: спин не выполнен');
-  if (mBal.balance >= 10000) errors.push('Портрет: ставка не списалась');
+  // Баланс должен сходиться: старт − ставка + выплата первого спина
+  if (mBal.hist.length !== 1) {
+    errors.push(`Портрет: спин не выполнен (история: ${JSON.stringify(mBal.hist)})`);
+  } else {
+    const expected = 10000 - 100 + mBal.hist[0].pay;
+    if (mBal.balance !== expected) {
+      errors.push(`Портрет: баланс ${mBal.balance} ≠ ожидаемых ${expected}`);
+    }
+  }
   await m.close();
 
   // Таблица выплат
