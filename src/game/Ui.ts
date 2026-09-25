@@ -32,6 +32,8 @@ export class Ui extends Container {
   private autoBtn: Button;
   private autoLabel: Text;
   private betDownBtn: Button;
+  private infoBtn: Button;
+  private muteBtn: Button;
   private betUpBtn: Button;
   private muteIcon: Container;
   private muteIconParts: Graphics;
@@ -41,6 +43,9 @@ export class Ui extends Container {
   private lossLimitBtn: Button;
   private winLimitLabel: Text;
   private lossLimitLabel: Text;
+  private tooltipPanel: Container;
+  private tooltipBg: Graphics;
+  private tooltipText: Text;
   private autoplayRemaining: number | null = null;
 
   constructor(cb: UiCallbacks) {
@@ -55,7 +60,7 @@ export class Ui extends Container {
     this.addChild(subtitle);
 
     // Таблица выплат
-    const infoBtn = new Button(56, 56, 'rect', () => {
+    const infoBtn = this.infoBtn = new Button(56, 56, 'rect', () => {
       audio.uiClick();
       cb.onPaytable();
     });
@@ -67,7 +72,7 @@ export class Ui extends Container {
     this.addChild(infoBtn);
 
     // Звук
-    const muteBtn = new Button(56, 56, 'rect', () => {
+    const muteBtn = this.muteBtn = new Button(56, 56, 'rect', () => {
       audio.uiClick();
       cb.onMute();
     });
@@ -225,6 +230,27 @@ export class Ui extends Container {
     this.lossLimitBtn.content.addChild(this.lossLimitLabel);
     this.addChild(this.lossLimitBtn);
 
+    // ── Слой тултипов ───────────────────────────────────────────
+    this.tooltipPanel = new Container();
+    this.tooltipBg = new Graphics();
+    this.tooltipText = makeText('', 19, COLORS.parchment, 'bold', 1);
+    this.tooltipText.anchor.set(0.5);
+    this.tooltipPanel.addChild(this.tooltipBg, this.tooltipText);
+    this.tooltipPanel.visible = false;
+    this.tooltipPanel.eventMode = 'none'; // не перехватывает клики
+    this.addChild(this.tooltipPanel);
+
+    // Подписи кнопок
+    this.attachTip(this.turboBtn, 'ТУРБО — УСКОРЕННЫЕ БАРАБАНЫ');
+    this.attachTip(this.autoBtn, 'АВТОИГРА: 10 / 25 / 50 / ∞ СПИНОВ (A)');
+    this.attachTip(this.winLimitBtn, 'ЛИМИТ АВТОИГРЫ — СТОП ПРИ ВЫИГРЫШЕ ≥ N× СТАВКИ (КЛИК — ИЗМЕНИТЬ)');
+    this.attachTip(this.lossLimitBtn, 'ЛИМИТ АВТОИГРЫ — СТОП ПРИ ПРОИГРЫШЕ ≤ N× СТАВКИ (КЛИК — ИЗМЕНИТЬ)');
+    this.attachTip(this.infoBtn, 'ТАБЛИЦА ВЫПЛАТ (I)');
+    this.attachTip(this.muteBtn, 'ЗВУК ВКЛ / ВЫКЛ (M)');
+    this.attachTip(this.betDownBtn, 'СТАВКА МЕНЬШЕ (↓)');
+    this.attachTip(this.betUpBtn, 'СТАВКА БОЛЬШЕ (↑)');
+    this.attachTip(this.spinBtn, 'КРУТИТЬ БАРАБАНЫ (SPACE) — ПОВТОРНО: БЫСТРЫЙ СТОП');
+
     this.addChild(this.makeLinesHint());
   }
 
@@ -261,6 +287,34 @@ export class Ui extends Container {
     this.lossLimitLabel.text = lossMult > 0 ? `ПРОИГРЫШ ≤ ${lossMult}×` : 'ПРОИГРЫШ ≤ выкл';
     this.winLimitLabel.style.fill = winMult > 0 ? COLORS.goldBright : '#6a5a3a';
     this.lossLimitLabel.style.fill = lossMult > 0 ? COLORS.goldBright : '#6a5a3a';
+  }
+
+  /** Вешает тултип на цель: панелька над кнопкой (below — под ней). */
+  private attachTip(target: Container, text: string, below = false): void {
+    target.on('pointerover', () => this.showTip(target, text, below));
+    target.on('pointerout', () => this.hideTip());
+  }
+
+  private showTip(target: Container, text: string, below: boolean): void {
+    this.tooltipText.text = text;
+    const padX = 20;
+    const h = 42;
+    const w = this.tooltipText.width + padX * 2;
+    const cx = target.x + target.width / 2;
+    const x = Math.min(Math.max(cx - w / 2, 16), DESIGN_W - w - 16);
+    const y = below ? target.y + target.height + 10 : target.y - h - 10;
+    this.tooltipBg
+      .roundRect(0, 0, w, h, 8)
+      .fill({ color: 0x0d0a08, alpha: 0.96 })
+      .roundRect(0, 0, w, h, 8)
+      .stroke({ color: COLORS.goldDark, width: 1.5 });
+    this.tooltipText.position.set(w / 2, h / 2);
+    this.tooltipPanel.position.set(x, y);
+    this.tooltipPanel.visible = true;
+  }
+
+  private hideTip(): void {
+    this.tooltipPanel.visible = false;
   }
 
   private drawMuteIcon(muted: boolean): void {
