@@ -35,18 +35,24 @@ export function computeLayout(vw: number, vh: number): LayoutMode {
   if (MODE === 'portrait') {
     DESIGN_W = 1080;
     DESIGN_H = 1920;
-    // Барабаны: крупная сетка в верхней трети
-    CELL = Math.min((DESIGN_W - 60) / REELS, 620 / ROWS); // ≈ 204
+    // Cover-посадка фона (арт 1672×941) — та же формула, что в Game
+    const k = Math.max(DESIGN_W / 1672, DESIGN_H / 941);
+    const bgX = (DESIGN_W - 1672 * k) / 2;
+    const bgY = (DESIGN_H - 941 * k) / 2;
+    // Тёмная зона фона в координатах дизайна
+    const zx = BG.zone.x0 * 1672 * k + bgX;
+    const zy = BG.zone.y0 * 941 * k + bgY;
+    const zw = (BG.zone.x1 - BG.zone.x0) * 1672 * k;
+    const zh = (BG.zone.y1 - BG.zone.y0) * 941 * k;
+    // Сетка — строго внутри тёмной зоны (по центру), ширина не больше экрана
+    CELL = Math.min((DESIGN_W - 60) / REELS, (zh * 0.9) / ROWS);
     const gridW = CELL * REELS;
     const gridH = CELL * ROWS;
-    REELS_AREA = {
-      x: (DESIGN_W - gridW) / 2,
-      y: 310,
-      w: gridW,
-      h: gridH,
-    };
-    BOTTOM_BAR.y = 1290;
-    BOTTOM_BAR.h = DESIGN_H - 1290;
+    const gx = Math.min(Math.max(zx + (zw - gridW) / 2, 20), DESIGN_W - 20 - gridW);
+    const gy = zy + (zh - gridH) / 2;
+    REELS_AREA = { x: gx, y: gy, w: gridW, h: gridH };
+    BOTTOM_BAR.y = Math.min(DESIGN_H - 620, gy + gridH + 160);
+    BOTTOM_BAR.h = DESIGN_H - BOTTOM_BAR.y;
   } else {
     DESIGN_W = 1920;
     DESIGN_H = 1080;

@@ -54,12 +54,21 @@ export class Ui extends Container {
 
   constructor(cb: UiCallbacks) {
     super();
+    // В портрете шрифты крупнее (экран ближе к глазам)
+    const FK = MODE === 'portrait' ? 1.2 : 1;
+    const mt = (
+      t: string,
+      size: number,
+      color: Parameters<typeof makeText>[2],
+      weight?: 'normal' | 'bold',
+      letterSpacing?: number,
+    ): Text => makeText(t, Math.round(size * FK), color, weight, letterSpacing);
 
     // ── Верхняя панель ──────────────────────────────────────────────
-    this.title = makeText('GRIM FORTUNE', 34, COLORS.goldBright, 'bold', 10);
+    this.title = mt('GRIM FORTUNE', 34, COLORS.goldBright, 'bold', 10);
     this.title.position.set(46, TOP_BAR.h / 2 - 34);
     this.addChild(this.title);
-    this.subtitle = makeText('тёмные барабаны императора', 16, '#7a6a45', 'normal', 3);
+    this.subtitle = mt('тёмные барабаны императора', 16, '#7a6a45', 'normal', 3);
     this.subtitle.position.set(48, TOP_BAR.h / 2 + 8);
     this.addChild(this.subtitle);
 
@@ -69,7 +78,7 @@ export class Ui extends Container {
       cb.onPaytable();
     });
     infoBtn.position.set(DESIGN_W - 46 - 56 * 2 - 12, TOP_BAR.h / 2 - 28);
-    const infoTxt = makeText('i', 34, COLORS.parchment, 'bold', 0);
+    const infoTxt = mt('i', 34, COLORS.parchment, 'bold', 0);
     infoTxt.anchor.set(0.5);
     infoTxt.position.set(28, 26);
     infoBtn.content.addChild(infoTxt);
@@ -101,10 +110,10 @@ export class Ui extends Container {
     const balancePanel = makePanel(400, 96);
     balancePanel.position.set(60, BOTTOM_BAR.y + 34);
     this.addChild(balancePanel);
-    const balanceLabel = makeText('БАЛАНС', 20, '#8a7a52', 'bold', 4);
+    const balanceLabel = mt('БАЛАНС', 20, '#8a7a52', 'bold', 4);
     balanceLabel.position.set(24, 14);
     balancePanel.addChild(balanceLabel);
-    this.balanceText = makeText('0', 38, COLORS.parchment, 'bold', 1);
+    this.balanceText = mt('0', 38, COLORS.parchment, 'bold', 1);
     this.balanceText.position.set(24, 42);
     balancePanel.addChild(this.balanceText);
 
@@ -112,10 +121,10 @@ export class Ui extends Container {
     const betPanel = makePanel(430, 96);
     betPanel.position.set(DESIGN_W - 60 - 430, BOTTOM_BAR.y + 34);
     this.addChild(betPanel);
-    const betLabel = makeText('ОБЩАЯ СТАВКА', 20, '#8a7a52', 'bold', 3);
+    const betLabel = mt('ОБЩАЯ СТАВКА', 20, '#8a7a52', 'bold', 3);
     betLabel.position.set(24, 14);
     betPanel.addChild(betLabel);
-    this.betText = makeText('0', 38, COLORS.parchment, 'bold', 1);
+    this.betText = mt('0', 38, COLORS.parchment, 'bold', 1);
     this.betText.position.set(24, 42);
     betPanel.addChild(this.betText);
 
@@ -124,7 +133,7 @@ export class Ui extends Container {
       cb.onBetChange(-1);
     });
     this.betDownBtn.position.set(DESIGN_W - 60 - 430 + 310, BOTTOM_BAR.y + 56);
-    const minus = makeText('−', 36, COLORS.parchment, 'bold', 0);
+    const minus = mt('−', 36, COLORS.parchment, 'bold', 0);
     minus.anchor.set(0.5);
     minus.position.set(26, 24);
     this.betDownBtn.content.addChild(minus);
@@ -135,7 +144,7 @@ export class Ui extends Container {
       cb.onBetChange(1);
     });
     this.betUpBtn.position.set(DESIGN_W - 60 - 430 + 368, BOTTOM_BAR.y + 56);
-    const plus = makeText('+', 36, COLORS.parchment, 'bold', 0);
+    const plus = mt('+', 36, COLORS.parchment, 'bold', 0);
     plus.anchor.set(0.5);
     plus.position.set(26, 24);
     this.betUpBtn.content.addChild(plus);
@@ -144,12 +153,12 @@ export class Ui extends Container {
     // Выигрыш (центр, над спином)
     // Счётчик выигрыша — над нижней панелью, на свободной зоне пола
     // (не за кнопкой спина)
-    this.winLabel = makeText('ВЫИГРЫШ', 22, '#8a7a52', 'bold', 6);
+    this.winLabel = mt('ВЫИГРЫШ', 22, '#8a7a52', 'bold', 6);
     this.winLabel.anchor.set(0.5);
     this.winLabel.position.set(DESIGN_W / 2, 828);
     this.winLabel.visible = false;
     this.addChild(this.winLabel);
-    this.winText = makeText('', 48, COLORS.goldBright, 'bold', 3);
+    this.winText = mt('', 48, COLORS.goldBright, 'bold', 3);
     this.winText.anchor.set(0.5);
     this.winText.position.set(DESIGN_W / 2, 878);
     this.addChild(this.winText);
@@ -182,11 +191,11 @@ export class Ui extends Container {
       cb.onTurbo();
     }, { base: 0x241a06 });
     this.turboBtn.position.set(DESIGN_W / 2 - 58 - 96 - 36 - 20 - 96, DESIGN_H - 74 - 32);
-    this.turboLabel = makeText('ТУРБО', 22, COLORS.parchment, 'bold', 2);
+    this.turboLabel = mt('ТУРБО', 22, COLORS.parchment, 'bold', 2);
     this.turboLabel.anchor.set(0.5);
     this.turboLabel.position.set(48, 24);
     this.turboBtn.content.addChild(this.turboLabel);
-    this.turboState = makeText('ВЫКЛ', 16, '#8a7a52', 'bold', 1);
+    this.turboState = mt('ВЫКЛ', 16, '#8a7a52', 'bold', 1);
     this.turboState.anchor.set(0.5);
     this.turboState.position.set(48, 46);
     this.turboState.name = 'turboState';
@@ -201,11 +210,11 @@ export class Ui extends Container {
       cb.onAutoplay();
     });
     this.autoBtn.position.set(DESIGN_W / 2 - 58 - 96 - 36, DESIGN_H - 74 - 32);
-    this.autoLabel = makeText('АВТО', 22, COLORS.parchment, 'bold', 2);
+    this.autoLabel = mt('АВТО', 22, COLORS.parchment, 'bold', 2);
     this.autoLabel.anchor.set(0.5);
     this.autoLabel.position.set(48, 24);
     this.autoBtn.content.addChild(this.autoLabel);
-    const autoSub = makeText('10', 16, '#8a7a52', 'bold', 1);
+    const autoSub = mt('10', 16, '#8a7a52', 'bold', 1);
     autoSub.anchor.set(0.5);
     autoSub.position.set(48, 46);
     autoSub.name = 'autoSub';
@@ -213,7 +222,7 @@ export class Ui extends Container {
     this.addChild(this.autoBtn);
 
     // Тост (сообщения)
-    this.toastText = makeText('', 30, COLORS.redBright, 'bold', 2);
+    this.toastText = mt('', 30, COLORS.redBright, 'bold', 2);
     this.toastText.anchor.set(0.5);
     this.toastText.position.set(DESIGN_W / 2, BOTTOM_BAR.y - 36);
     this.toastText.alpha = 0;
@@ -225,7 +234,7 @@ export class Ui extends Container {
       cb.onWinLimit();
     });
     this.winLimitBtn.position.set(DESIGN_W / 2 - 250 - 12, TOP_BAR.h / 2 - 20);
-    this.winLimitLabel = makeText('', 19, COLORS.parchment, 'bold', 1);
+    this.winLimitLabel = mt('', 19, COLORS.parchment, 'bold', 1);
     this.winLimitLabel.anchor.set(0.5);
     this.winLimitLabel.position.set(120, 20);
     this.winLimitBtn.content.addChild(this.winLimitLabel);
@@ -236,7 +245,7 @@ export class Ui extends Container {
       cb.onLossLimit();
     });
     this.lossLimitBtn.position.set(DESIGN_W / 2 + 12, TOP_BAR.h / 2 - 20);
-    this.lossLimitLabel = makeText('', 19, COLORS.parchment, 'bold', 1);
+    this.lossLimitLabel = mt('', 19, COLORS.parchment, 'bold', 1);
     this.lossLimitLabel.anchor.set(0.5);
     this.lossLimitLabel.position.set(120, 20);
     this.lossLimitBtn.content.addChild(this.lossLimitLabel);
@@ -245,7 +254,7 @@ export class Ui extends Container {
     // ── Слой тултипов ───────────────────────────────────────────
     this.tooltipPanel = new Container();
     this.tooltipBg = new Graphics();
-    this.tooltipText = makeText('', 19, COLORS.parchment, 'bold', 1);
+    this.tooltipText = mt('', 19, COLORS.parchment, 'bold', 1);
     this.tooltipText.anchor.set(0.5);
     this.tooltipPanel.addChild(this.tooltipBg, this.tooltipText);
     this.tooltipPanel.visible = false;
