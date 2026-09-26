@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "timeweb-cloud": {
+      "url": "https://api.timeweb.cloud/api/v1/mcp/search",
+      "auth": "bearer",
+      "bearerTokenStore": true
+    }
+  }
+}
